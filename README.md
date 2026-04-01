@@ -61,7 +61,7 @@ Add-WindowsCapability -Online -Name "Print.MicrosoftPrintToPDF~~~~0.0.1.0"
 
 ### Option 2: Clone Repository
 ```powershell
-git clone https://github.com/yourusername/images-to-pdf.git
+git clone https://github.com/asuspades/images-to-pdf.git
 cd images-to-pdf
 ```
 
