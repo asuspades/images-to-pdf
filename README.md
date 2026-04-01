@@ -1,4 +1,3 @@
-```markdown
 # images-to-pdf.ps1
 
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1-blue?logo=powershell)](https://github.com/PowerShell/PowerShell)
