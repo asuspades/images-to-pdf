@@ -3,10 +3,13 @@
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1-blue?logo=powershell)](https://github.com/PowerShell/PowerShell)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Windows](https://img.shields.io/badge/OS-Windows%2010%2F11-lightgrey)](#)
+[![Release](https://img.shields.io/badge/release-v2.0.0-blue)](https://github.com/asuspades/images-to-pdf/releases)
 
 > Pure .NET PowerShell script to convert image folders to PDF—**no ImageMagick, no external dependencies**.
 
-Convert scanned book pages, documents, or photo collections into optimized, searchable PDFs using only built-in Windows components. Ideal for archiving B&W book scans with automatic grayscale conversion, resizing, and JPEG compression.
+Convert scanned book pages, documents, or photo collections into optimized PDFs using only built-in Windows components. Ideal for archiving B&W book scans with automatic grayscale conversion, resizing, and JPEG compression.
+
+✨ **v2.0 New Feature**: Cover images (files with `cover` in the filename) are automatically preserved in full color, even when grayscale mode is enabled.
 
 ---
 
@@ -14,6 +17,7 @@ Convert scanned book pages, documents, or photo collections into optimized, sear
 
 - 🔒 **Pure .NET**: Uses only `System.Drawing` and built-in Windows printers—no third-party tools
 - 🎨 **Smart Processing**: Optional grayscale conversion (ITU-R BT.601), resizing, and quality control
+- 🖼️ **Cover Detection**: Files with "cover" in the name stay in color automatically *(v2.0)*
 - 📦 **Batch Optimized**: Processes entire folders with progress feedback and error resilience
 - 🗜️ **Space Efficient**: Compresses images before PDF generation for smaller output files
 - 🛡️ **Safe by Design**: Input validation, path sanitization, and automatic temp cleanup
@@ -92,7 +96,27 @@ cd images-to-pdf
 
 # Dry run: see what would happen without making changes
 .\images-to-pdf.ps1 "C:\Scans\MyBook" -WhatIf
+
+# Verbose mode for troubleshooting
+.\images-to-pdf.ps1 "C:\Scans\MyBook" -Verbose
 ```
+
+### Cover Image Handling *(v2.0)*
+
+Images with `cover` in the filename (case-insensitive) are automatically preserved in full color, even when `-NoGrayscale` is **not** specified:
+
+```powershell
+# Folder contains: cover.jpg, page001.jpg, page002.jpg
+# Result: cover.jpg stays in color; pages converted to grayscale
+.\images-to-pdf.ps1 "C:\Scans\MyBook"
+
+# To force grayscale on ALL images (including covers):
+.\images-to-pdf.ps1 "C:\Scans\MyBook" -NoGrayscale:$false  # default behavior
+# Or explicitly override by renaming: cover.jpg -> page_cover.jpg (still matches)
+# To bypass: rename cover file temporarily or use -NoGrayscale to keep everything in color
+```
+
+> 💡 **Tip**: Name your cover files `cover.jpg`, `Cover_Page.png`, `BACK-COVER.tif`, etc.—any variation with "cover" will be detected.
 
 ### Parameter Reference
 
@@ -102,7 +126,7 @@ cd images-to-pdf
 | `-OutputPdf` | `string` | `<folder>.pdf` | Optional custom output path for the PDF |
 | `-Quality` | `int` | `70` | JPEG compression quality (1–100); lower = smaller file |
 | `-MaxDimension` | `int` | `1500` | Max width/height in pixels; set `0` to disable resizing |
-| `-NoGrayscale` | `switch` | `$false` | Preserve original color instead of converting to grayscale |
+| `-NoGrayscale` | `switch` | `$false` | Preserve color for all images (overrides cover detection) |
 | `-NoFullPage` | `switch` | `$false` | Keep page margins instead of filling the entire page |
 | `-Verbose` | `switch` | `$false` | Show detailed processing information |
 | `-WhatIf` | `switch` | `$false` | Preview actions without executing (safe mode) |
@@ -119,6 +143,7 @@ This script is designed with security in mind:
 - ✅ **Controlled temp usage**: Creates isolated temp folder in `$env:TEMP`, auto-deleted after use
 - ✅ **No source modification**: Original images are never altered
 - ✅ **Transparent operations**: All file operations logged via `Write-Verbose`
+- ✅ **Resource safety**: All `System.Drawing` objects properly disposed via `finally` blocks
 
 > 🛡️ **Best Practice**: Always review scripts before execution. Run with `-Verbose` first to audit behavior.
 
@@ -133,6 +158,7 @@ This script is designed with security in mind:
 | Single-threaded processing | Large batches may take time; no parallelization |
 | No OCR/text layer | Output is image-only PDF; use separate OCR tool if needed |
 | Windows-only | Not compatible with PowerShell Core on non-Windows platforms |
+| Cover detection is filename-based | Rename files if automatic detection doesn't match your needs |
 
 ---
 
@@ -164,6 +190,11 @@ Add-WindowsCapability -Online -Name "Print.MicrosoftPrintToPDF~~~~0.0.1.0"
 - Try a different output path (avoid network drives)
 - Check Windows Event Viewer for printer subsystem errors
 
+### ❌ Cover image still converted to grayscale
+- Verify the filename contains "cover" (case-insensitive): `cover.jpg`, `Cover_Page.png`, `BACK-COVER.tif`
+- Check verbose output: `.\images-to-pdf.ps1 "C:\Scans\Book" -Verbose` to see detection logs
+- If needed, use `-NoGrayscale` to preserve color for all images
+
 ---
 
 ## 🤝 Contributing
@@ -189,6 +220,9 @@ Invoke-ScriptAnalyzer -Path .\images-to-pdf.ps1 -Recurse
 
 # Test with verbose output
 .\images-to-pdf.ps1 "C:\Test\Images" -Verbose
+
+# Test cover detection
+.\images-to-pdf.ps1 "C:\Test\BookWithCover" -Verbose | Select-String "Cover detected"
 ```
 
 ---
@@ -200,7 +234,7 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
 ```
 MIT License
 
-Copyright (c) 2026 Your Name
+Copyright (c) 2026 asuspades
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -240,7 +274,10 @@ A: Only on Windows. `System.Drawing` has limited support in PowerShell 7 on Wind
 A: No—this script creates image-only PDFs. For searchable PDFs, run the output through an OCR tool like Adobe Acrobat, ABBYY FineReader, or the free `ocrmypdf` (requires Python).
 
 **Q: Why grayscale by default?**  
-A: Grayscale significantly reduces file size for B&W book scans (often 30–50% smaller) with minimal quality loss. Use `-NoGrayscale` to preserve color.
+A: Grayscale significantly reduces file size for B&W book scans (often 30–50% smaller) with minimal quality loss. Use `-NoGrayscale` to preserve color for all images.
+
+**Q: How does cover detection work?**  
+A: Any image file whose name contains "cover" (case-insensitive) is automatically excluded from grayscale conversion. Examples: `cover.jpg`, `Cover_Page.png`, `BACK-COVER.tif`. Rename files to control this behavior.
 
 **Q: Can I process subfolders recursively?**  
 A: Not currently. This script processes only the top-level files in `-InputFolder`. For recursive processing, wrap the call in a loop or request the feature via GitHub Issues.
@@ -250,9 +287,27 @@ A: No—images are embedded as raster graphics. Text selection/search requires O
 
 ---
 
+## 🗓️ Changelog
+
+### [2.0.0] - 2026-01-01
+- ✨ **New**: Automatic cover image detection—files with "cover" in filename stay in color
+- ✨ **New**: Verbose logging for cover detection and image processing steps
+- 🔧 **Improved**: Summary output now reports number of covers preserved in color
+- 🔧 **Improved**: All disposable objects wrapped in `finally` blocks for guaranteed cleanup
+- 🔧 **Improved**: Parameter validation with clearer error messages
+- 📚 **Docs**: Updated README with cover detection examples and troubleshooting
+
+### [1.0.0] - 2025-12-01
+- Initial public release
+- Pure .NET image processing with System.Drawing
+- Grayscale conversion, resizing, quality control
+- PDF generation via Microsoft Print to PDF
+
+---
+
 > 💡 **Pro Tip**: Combine with [`ocrmypdf`](https://ocrmypdf.readthedocs.io/) for searchable PDFs:
 > ```powershell
-> # 1. Generate optimized PDF
+> # 1. Generate optimized PDF (covers stay in color automatically)
 > .\images-to-pdf.ps1 "C:\Scans\Book" -OutputPdf "C:\Output\book_images.pdf"
 > 
 > # 2. Add OCR text layer (requires Python + ocrmypdf)
@@ -262,5 +317,4 @@ A: No—images are embedded as raster graphics. Text selection/search requires O
 ---
 
 *Made with ❤️ for digital archivists, students, and anyone who loves tidy PDFs.*  
-*Report issues or suggest improvements on [GitHub](https://github.com/yourusername/images-to-pdf).*
-```
+*Report issues or suggest improvements on [GitHub](https://github.com/asuspades/images-to-pdf).*
