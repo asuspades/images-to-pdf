@@ -1,10 +1,13 @@
 <#
 .SYNOPSIS
-    Converts images in a folder to a single PDF using pure .NET.
+    Converts images in a folder to a single PDF using pure .NET (no ImageMagick).
 
 .DESCRIPTION
     Processes JPG/PNG/BMP/TIFF images, optionally resizes, converts to grayscale,
     and compiles them into a PDF using Microsoft Print to PDF.
+
+    Special feature: Images with "cover" in the filename (case-insensitive) are
+    automatically kept in full color even when grayscale mode is enabled.
 
     This script uses System.Drawing for image processing and the virtual
     "Microsoft Print to PDF" printer for PDF generation. No external dependencies.
@@ -23,7 +26,8 @@
     Set to 0 to disable resizing. Default: 1500.
 
 .PARAMETER NoGrayscale
-    Switch to preserve color. Default behavior converts to grayscale for smaller files.
+    Switch to preserve color for all images. Default behavior converts to grayscale
+    (except cover images, which are always preserved in color).
 
 .PARAMETER NoFullPage
     Switch to keep original page margins instead of filling the entire page.
@@ -40,10 +44,14 @@
     .\images-to-pdf.ps1 "C:\Scans\Book1" -MaxDimension 0 -OutputPdf "C:\Output\result.pdf"
     No resizing, custom output path.
 
+.EXAMPLE
+    .\images-to-pdf.ps1 "C:\Scans\Book1" -Verbose
+    Run with detailed logging for troubleshooting.
+
 .NOTES
-    Author: asuspades
-    Version: 1.0.0
-    Created: 2026-04-01
+    Author: Your Name
+    Version: 2.0.0
+    Created: 2026-01-01
     Requires:
       - Windows 10/11 or Windows Server 2016+
       - PowerShell 5.1+ (Windows PowerShell)
@@ -52,13 +60,14 @@
     
     ⚠️  Not compatible with PowerShell 7+ on non-Windows platforms.
     ⚠️  System.Drawing has known limitations with very large images or certain formats.
+    ✨  v2.0: Added automatic cover image detection (files with "cover" in name stay in color)
 
 .LINK
-    https://github.com/asuspades/images-to-pdf/blob/main/images-to-pdf.ps1
+    https://github.com/asuspades/images-to-pdf
 #>
 
 # SPDX-License-Identifier: MIT
-# Repository: https://github.com/asuspades/images-to-pdf/
+# Repository: https://github.com/asuspades/images-to-pdf
 
 [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
 param(
@@ -121,7 +130,6 @@ begin {
     $doGrayscale = -not $NoGrayscale
     $doFullPage  = -not $NoFullPage
     $tempDir = $null
-    $cleanupPerformed = $false
 }
 
 process {
@@ -158,7 +166,8 @@ process {
         $originalSize = ($images | Measure-Object -Property Length -Sum).Sum
 
         Write-Host "Found $totalCount images ($([math]::Round($originalSize / 1MB, 1)) MB total)"
-        Write-Host "Settings: quality=$Quality, max=$($MaxDimension -eq 0 ? 'unlimited' : "${MaxDimension}px"), grayscale=$doGrayscale, fullpage=$doFullPage"
+        $maxDimDisplay = if ($MaxDimension -eq 0) { 'unlimited' } else { "${MaxDimension}px" }
+        Write-Host "Settings: quality=$Quality, max=$maxDimDisplay, grayscale=$doGrayscale, fullpage=$doFullPage"
         Write-Verbose "Images: $($images.Name -join ', ')"
         Write-Host ""
 
@@ -183,6 +192,7 @@ process {
 
         $compressedSize = 0
         $resizedCount = 0
+        $coverCount = 0
         $errorCount = 0
 
         for ($i = 0; $i -lt $images.Count; $i++) {
@@ -221,7 +231,14 @@ process {
                 $g.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
                 $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
 
-                if ($doGrayscale) {
+                # Detect cover images: keep in full color even when grayscale is enabled
+                $isCover = $file.BaseName -match '(?i)cover'
+                if ($isCover -and $doGrayscale) {
+                    $coverCount++
+                    Write-Verbose "  Cover detected: $($file.Name) - preserving color"
+                }
+
+                if ($doGrayscale -and -not $isCover) {
                     # Grayscale conversion using ITU-R BT.601 luminance weights
                     $cm = New-Object System.Drawing.Imaging.ColorMatrix
                     $cm.Matrix00 = 0.299; $cm.Matrix01 = 0.299; $cm.Matrix02 = 0.299; $cm.Matrix03 = 0; $cm.Matrix04 = 0
@@ -267,6 +284,9 @@ process {
 
         Write-Host ""
         Write-Host "Recompressed: $([math]::Round($originalSize / 1MB, 1)) MB -> $([math]::Round($compressedSize / 1MB, 1)) MB ($resizedCount resized, $errorCount errors)"
+        if ($coverCount -gt 0) {
+            Write-Host "  ✓ $coverCount cover image(s) preserved in color" -ForegroundColor Cyan
+        }
         Write-Verbose "Temp images: $((Get-ChildItem $tempDir).Count) files"
 
         # -- Stage 2: Build PDF via Print-to-PDF --------------------------------
