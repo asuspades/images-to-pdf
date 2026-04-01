@@ -54,7 +54,7 @@
     ⚠️  System.Drawing has known limitations with very large images or certain formats.
 
 .LINK
-    https://github.com/asuspades/images-to-pdf/
+    https://github.com/asuspades/images-to-pdf/blob/main/images-to-pdf.ps1
 #>
 
 # SPDX-License-Identifier: MIT
