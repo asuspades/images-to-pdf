@@ -289,7 +289,7 @@ A: No—images are embedded as raster graphics. Text selection/search requires O
 
 ## 🗓️ Changelog
 
-### [2.0.0] - 2026-01-01
+### [2.0.0] - 2026-04-02
 - ✨ **New**: Automatic cover image detection—files with "cover" in filename stay in color
 - ✨ **New**: Verbose logging for cover detection and image processing steps
 - 🔧 **Improved**: Summary output now reports number of covers preserved in color
@@ -297,7 +297,7 @@ A: No—images are embedded as raster graphics. Text selection/search requires O
 - 🔧 **Improved**: Parameter validation with clearer error messages
 - 📚 **Docs**: Updated README with cover detection examples and troubleshooting
 
-### [1.0.0] - 2025-12-01
+### [1.0.0] - 2026-04-01
 - Initial public release
 - Pure .NET image processing with System.Drawing
 - Grayscale conversion, resizing, quality control
